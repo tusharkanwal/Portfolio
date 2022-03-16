@@ -4,6 +4,8 @@ Data exploration for gathering insights on COVID-19 data and assessing the situa
 I will be querying worldwide data as well as India's as that's the country where I reside and have been facing this pandemic for over 1.5 year hence, I would be delighted to gain further insights into the impact COVID
 
 Skills used: Joins, CTE, Temp Tables, Views, AGG functions, Aliasing, coalesce, etc...
+
+Dataset: https://ourworldindata.org/covid-deaths
 */
 
 
@@ -37,7 +39,8 @@ where continent is not NULL
 order by location,date;
 
 
--- Total Cases vs Total Deaths / likelyhood of dying from covid (Worldwide)
+-- Total Cases vs Total Deaths
+-- Likelyhood of dying from Covid (Worldwide)
 
 Select location,date,total_cases,coalesce(total_deaths,NULL, 0) as total_deaths, coalesce((total_deaths/total_cases)*100,NULL,0) as death_percent
 from portfolio.public.deaths
@@ -45,7 +48,7 @@ where continent is not null
 order by location,date;
 
 
--- Total Cases vs Total Deaths / likelyhood of dying from covid (India)
+-- Likelyhood of dying from Covid in India
 
 Select location,date,total_cases,coalesce(total_deaths,NULL, 0) total_deaths, coalesce((total_deaths/total_cases)*100,NULL,0) as death_percent
 from portfolio.public.deaths
@@ -53,7 +56,8 @@ where location = 'India'
 order by location,date;
 
 
--- Total Cases vs Population / Percent of population who was infected (WorldWide)
+-- Total Cases vs Population 
+-- Percent of population who got infected (WorldWide)
 
 Select location,date,population,total_cases,(total_cases/population)*100 as Infected_percent
 from portfolio.public.deaths
@@ -61,7 +65,7 @@ where continent is not null
 order by 1,2;
 
 
--- Total Cases vs Population / Percent of population who was infected (India)
+-- Percent of population who got infected in India
 
 Select location,date,population,total_cases,(total_cases/population)*100 as Infected_percent
 from portfolio.public.deaths
@@ -96,7 +100,7 @@ Group by location
 order by death_percent desc;
 
 
--- Death rate in India compared to population
+-- Death rate in India
 
 Select location,coalesce(MAX(total_deaths),Null,0) as highest_death_count,coalesce(MAX(total_deaths/population),Null,0)*100 as death_percent
 from portfolio.public.deaths
@@ -105,6 +109,7 @@ Group by location;
 
 
 -- Continent wise breakdown
+
 -- Total Deaths (worldwide)
 
 Select continent,MAX(total_deaths) as highest_death_count
@@ -158,9 +163,7 @@ where d.location like 'India'
 order by 2;
 
 
--- CTE
-
--- % of population who has received atleast one vaccine dose(Worldwide)
+-- CTE for executing calculation on Partition by in the previous query
 
 With PopVsVax 
 (Continent, location, date, population, new_vaccinations, RollingPeopleVaccinated)
@@ -177,7 +180,7 @@ Select * ,coalesce((rollingpeoplevaccinated/population),null,0)*100 as Percent_V
 from popvsvax;
 
 
--- % of population who has received atleast one vaccine dose(India)
+-- CTE for executing calculation on Partition by in the previous query (India)
 
 With PopVsVaxInd
 (location, date, population, new_vaccinations, RollingPeopleVaccinated)
@@ -195,7 +198,7 @@ from popvsvaxInd
 where location ='India';
 
 
--- Temp Table
+-- Temp Table for executing calculation on Partition by in the previous query
 
 drop table if exists Percent_population_vaccinated;
 
@@ -211,6 +214,24 @@ and d.date=vax.date;
 
 Select * ,coalesce((rollingpeoplevaccinated/population),null,0)*100 as Percent_Vaccinated
 from Percent_Population_vaccinated;
+
+-- Temp Table for executing calculation on Partition by in the previous query (India)
+
+drop table if exists Percent_population_vaccinated;
+
+create temp table Percent_Population_vaccinated (
+	continent varchar(255), location varchar(255), date date, population bigint, new_vaccinations bigint, RollingPeopleVaccinated bigint
+);
+
+insert into Percent_population_vaccinated
+select d.continent, d.location,d.date,d.population,coalesce(vax.new_vaccinations,Null,0), sum(CAST(coalesce(vax.new_vaccinations,null,0) as bigint)) OVER (partition by d.location order by d.location, d.date) as RollingPeopleVaccinated
+From portfolio.public.deaths as d 
+join portfolio.public.vax on d.location=vax.location 
+and d.date=vax.date;
+
+Select * ,coalesce((rollingpeoplevaccinated/population),null,0)*100 as Percent_Vaccinated
+from Percent_Population_vaccinated
+where location LIKE 'India';
 
 
 -- View for viz (Worldwide)
