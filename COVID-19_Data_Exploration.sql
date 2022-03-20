@@ -252,4 +252,3 @@ From portfolio.public.deaths as d
 join portfolio.public.vax on d.location=vax.location 
 and d.date=vax.date
 where d.location like 'India';
-
