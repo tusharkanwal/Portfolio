@@ -172,4 +172,4 @@ from PortfolioProject.dbo.NashvilleHousing;
 
 alter table portfolio.public.housing 
 drop column OwnerAddress,
-drop column propertyaddress;
+drop column propertyaddress; 
